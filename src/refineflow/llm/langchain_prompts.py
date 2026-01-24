@@ -61,8 +61,16 @@ Analise cuidadosamente a entrada e identifique:
 - Requisitos funcionais e não-funcionais
 - Riscos com impacto e mitigação
 - Dependências internas e externas
-- Métricas e estimativas de custo
+- Métricas e estimativas de custo (utilize modelo T-Shirt quando aplicável)
 - Lacunas de informação
+
+**Modelo de Estimativas T-Shirt Sizing:**
+- PP: Muito simples (até 2 semanas) - Ajuste pontual, 1 endpoint simples
+- P: Simples/Baixa complexidade (até 1 mês) - Pequena feature isolada
+- M: Complexidade média (até 2 meses) - Feature com UI, API e fluxo
+- G: Alta complexidade (até 3 meses) - Múltiplos serviços/integrações
+- GG: Muito complexo (até 5 meses) - Refatorações grandes, projetos amplos
+- XGG: Extremamente complexo (meses) - Iniciativas estratégicas
 
 Seja específico, conciso e extraia apenas informações explícitas ou claramente implícitas.
 
@@ -135,7 +143,12 @@ Cada tarefa deve incluir:
 - Título claro e conciso
 - Descrição detalhada
 - Critérios de aceitação específicos e testáveis
-- Considerações sobre testes, observabilidade e riscos""",
+- Estimativa T-Shirt (PP, P, M, G, GG, XGG)
+- Considerações sobre testes, observabilidade e riscos
+
+**Modelo de Estimativas T-Shirt:**
+- PP: até 2 semanas | P: até 1 mês | M: até 2 meses
+- G: até 3 meses | GG: até 5 meses | XGG: meses de trabalho""",
         ),
         (
             "human",
@@ -175,10 +188,23 @@ O canvas deve cobrir:
 5. **Escopo**: In/out, cronograma, relevância estratégica
 6. **Riscos**: Identificados com mitigações
 7. **Stakeholders**: Listados com papéis
-8. **Complexidade**: Esforços de especificação, desenvolvimento, teste
+8. **Complexidade**: Esforços usando modelo T-Shirt (PP a XGG)
 9. **Comunicação**: Materiais, vídeos, treinamento
 10. **Custos**: Fontes, orçamento, total ao longo do tempo
 11. **Métricas**: Sucesso e benefícios
+
+**Modelo de Estimativas T-Shirt Sizing:**
+| Tamanho | Significado | Exemplo | Duração |
+|---------|-------------|---------|----------|
+| PP | Muito simples | Ajuste pontual, 1 endpoint simples | até 2 semanas |
+| P | Simples/Baixa complexidade | Pequena feature isolada | até 1 mês |
+| M | Complexidade média | Feature com UI, API e fluxo | até 2 meses |
+| G | Alta complexidade | Múltiplos serviços/integrações | até 3 meses |
+| GG | Muito complexo | Refatorações grandes, projetos amplos | até 5 meses |
+| XGG | Extremamente complexo | Iniciativas estratégicas | meses de trabalho |
+
+Sempre inclua uma seção "Modelo de Estimativas T-Shirt Sizing" com a tabela completa \
+e uma estimativa inicial para a atividade baseada nos dados disponíveis.
 
 Identifique lacunas de informação e sugira perguntas para completar.""",
         ),

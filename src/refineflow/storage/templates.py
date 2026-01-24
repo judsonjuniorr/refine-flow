@@ -124,6 +124,21 @@ CANVAS_TEMPLATE = """# Business Case Canvas: {title}
 **Esforço de Testes:**
 {testing_effort}
 
+## Modelo de Estimativas T-Shirt Sizing
+
+Para todas as atividades, utilizamos o modelo de estimativas T-Shirt para dimensionar o esforço e complexidade:
+
+| **Tamanho** | **Significado**              | **Exemplo de Esforço**                | **Duração de referência**  |
+|-------------|------------------------------|---------------------------------------|----------------------------|
+| PP          | Muito simples                | Ajuste pontual, 1 endpoint simples    | até 2 semanas              |
+| P           | Simples / Baixa complexidade | Pequena feature isolada               | até 1 mês                  |
+| M           | Complexidade média           | Feature com UI, API e fluxo           | até 2 meses                |
+| G           | Alta complexidade            | Múltiplos serviços / integrações      | até 3 meses                |
+| GG          | Muito complexo               | Refatorações grandes, projetos amplos | até 5 meses                |
+| XGG         | Extremamente complexo        | Iniciativas estratégicas              | meses de trabalho          |
+
+**Estimativa desta atividade:** {tshirt_estimate}
+
 ## Plano de Comunicação
 
 **Materiais:**

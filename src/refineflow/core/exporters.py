@@ -90,6 +90,10 @@ class CanvasExporter:
             specification_effort=canvas_data.get("specification_effort", "_Not estimated_"),
             development_effort=canvas_data.get("development_effort", "_Not estimated_"),
             testing_effort=canvas_data.get("testing_effort", "_Not estimated_"),
+            tshirt_estimate=canvas_data.get(
+                "tshirt_estimate",
+                "_A ser definida após análise detalhada dos requisitos_",
+            ),
             materials=format_list(canvas_data.get("materials", [])),
             videos=format_list(canvas_data.get("videos", [])),
             training=format_list(canvas_data.get("training", [])),
