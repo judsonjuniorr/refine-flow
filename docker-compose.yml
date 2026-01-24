@@ -1,0 +1,43 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: refineflow-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./scripts/init-ollama.sh:/init-ollama.sh
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        # Inicia o servidor Ollama em background
+        /bin/ollama serve &
+        
+        # Aguarda o servidor ficar pronto
+        echo "Aguardando Ollama iniciar..."
+        sleep 10
+        
+        # Baixa o modelo snowflake-arctic-embed se não existir
+        if ! ollama list | grep -q "snowflake-arctic-embed"; then
+          echo "Baixando modelo snowflake-arctic-embed..."
+          ollama pull snowflake-arctic-embed:latest
+          echo "Modelo snowflake-arctic-embed baixado com sucesso!"
+        else
+          echo "Modelo snowflake-arctic-embed já existe."
+        fi
+        
+        # Mantém o container rodando
+        wait
+
+volumes:
+  ollama_data:
+    name: refineflow-ollama-data
