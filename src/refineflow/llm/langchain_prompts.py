@@ -49,6 +49,15 @@ class StateUpdate(BaseModel):
     )
 
 
+class EntryTypeClassification(BaseModel):
+    """Schema for entry type classification."""
+
+    entry_type: str = Field(
+        description="Tipo da entrada: note, answer, transcript, jira_description, "
+        "decision, requirement, risk, metric, cost, ou dependency"
+    )
+
+
 # Template para extração de estado
 EXTRACTION_TEMPLATE = ChatPromptTemplate.from_messages(
     [
@@ -291,3 +300,73 @@ def get_canvas_chain(llm):
     """Create canvas generation chain."""
     parser = StrOutputParser()
     return CANVAS_TEMPLATE | llm | parser
+
+
+# ============================================================================
+# PHASE 4: Entry Type Classification
+# ============================================================================
+
+# Template para classificação de tipo de entrada
+CLASSIFICATION_TEMPLATE = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """Você é um assistente especializado em classificar tipos de entrada em um sistema de refinamento de atividades.
+
+Sua tarefa é analisar o conteúdo fornecido e determinar qual tipo de entrada ele representa.
+
+**Tipos de Entrada Disponíveis:**
+
+1. **note** (Nota): Observação geral, comentário, informação adicional sem compromisso formal.
+   - Exemplo: "O sistema atual usa MySQL mas talvez possamos migrar para PostgreSQL no futuro."
+
+2. **answer** (Resposta): Resposta direta a uma questão previamente identificada.
+   - Exemplo: "Resposta à questão sobre autenticação: usaremos OAuth 2.0 com JWT."
+
+3. **transcript** (Transcrição): Transcrição de reunião, conversa ou discussão entre múltiplas pessoas.
+   - Exemplo: "João: Precisamos definir o prazo. Maria: Sugiro 2 sprints."
+
+4. **jira_description** (Descrição Jira): Descrição formal de tarefa ou história de usuário importada do Jira.
+   - Exemplo: "Como usuário, quero poder recuperar minha senha por email para poder acessar o sistema."
+
+5. **decision** (Decisão): Decisão tomada pela equipe ou stakeholders, geralmente com justificativa.
+   - Exemplo: "Decidimos usar PostgreSQL como banco de dados principal por sua robustez."
+
+6. **requirement** (Requisito): Requisito funcional ou não-funcional do sistema.
+   - Exemplo: "O sistema deve permitir que usuários façam login com email e senha."
+
+7. **risk** (Risco): Risco identificado com possível impacto e/ou mitigação.
+   - Exemplo: "Existe o risco de a API externa não suportar a carga, causando timeouts."
+
+8. **metric** (Métrica): Métrica de sucesso, KPI ou indicador de desempenho.
+   - Exemplo: "A taxa de conversão deve ser de pelo menos 15%."
+
+9. **cost** (Custo): Estimativa de custo, orçamento ou recursos financeiros.
+   - Exemplo: "O custo estimado da infraestrutura cloud é de R$ 5.000/mês."
+
+10. **dependency** (Dependência): Dependência técnica ou de processo com outros sistemas/equipes.
+    - Exemplo: "Dependemos da API do time de Pagamentos para processar transações."
+
+**Regras de Classificação:**
+- Analise o conteúdo cuidadosamente
+- Escolha o tipo MAIS ESPECÍFICO que se aplica
+- Se houver dúvida, prefira 'note' (é o tipo mais genérico)
+- Decisões geralmente contêm palavras como "decidimos", "optamos", "escolhemos"
+- Requisitos geralmente contêm "deve", "precisa", "é necessário"
+- Riscos geralmente contêm "risco", "pode causar", "potencial problema"
+- Transcrições têm formato de diálogo com múltiplos interlocutores
+
+{format_instructions}""",
+        ),
+        ("human", "Classifique o seguinte conteúdo:\n\n{content}"),
+    ]
+)
+
+
+def get_classification_chain(llm):
+    """Create entry type classification chain."""
+    parser = JsonOutputParser(pydantic_object=EntryTypeClassification)
+    prompt = CLASSIFICATION_TEMPLATE.partial(
+        format_instructions=parser.get_format_instructions()
+    )
+    return prompt | llm | parser

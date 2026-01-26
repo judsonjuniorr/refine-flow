@@ -48,6 +48,222 @@ def processor() -> LLMProcessor:
     return LLMProcessor()
 
 
+# ============================================================================
+# PHASE 4: Entry Type Auto-Classification Tests
+# ============================================================================
+
+
+class TestEntryTypeClassification:
+    """Tests for automatic entry type classification."""
+
+    def test_classify_entry_type_note(self, processor: LLMProcessor) -> None:
+        """Test classification of general note/observation."""
+        content = "O sistema atual usa MySQL mas talvez possamos migrar para PostgreSQL no futuro."
+
+        with patch.object(processor.client, "is_available", return_value=True), \
+             patch.object(processor.client, "get_llm") as mock_get_llm, \
+             patch("refineflow.llm.processor_langchain.get_classification_chain") as mock_get_chain:
+
+            # Mock LLM
+            mock_llm = MagicMock()
+            mock_get_llm.return_value = mock_llm
+
+            # Mock chain that returns dict directly
+            mock_chain = MagicMock()
+            mock_chain.invoke.return_value = {"entry_type": "note"}
+            mock_get_chain.return_value = mock_chain
+
+            result = processor.classify_entry_type(content)
+
+            assert result == EntryType.NOTE
+
+    def test_classify_entry_type_decision(self, processor: LLMProcessor) -> None:
+        """Test classification of documented decision."""
+        content = (
+            "Decidimos usar PostgreSQL como banco de dados principal "
+            "por sua robustez e suporte a JSON."
+        )
+
+        with patch.object(processor.client, "is_available", return_value=True), \
+             patch.object(processor.client, "get_llm") as mock_get_llm, \
+             patch("refineflow.llm.processor_langchain.get_classification_chain") as mock_get_chain:
+
+            mock_llm = MagicMock()
+            mock_get_llm.return_value = mock_llm
+
+            mock_chain = MagicMock()
+            mock_chain.invoke.return_value = {"entry_type": "decision"}
+            mock_get_chain.return_value = mock_chain
+
+            result = processor.classify_entry_type(content)
+
+            assert result == EntryType.DECISION
+
+    def test_classify_entry_type_requirement(self, processor: LLMProcessor) -> None:
+        """Test classification of functional requirement."""
+        content = "O sistema deve permitir que usuários façam login com email e senha."
+
+        with patch.object(processor.client, "is_available", return_value=True), \
+             patch.object(processor.client, "get_llm") as mock_get_llm, \
+             patch("refineflow.llm.processor_langchain.get_classification_chain") as mock_get_chain:
+
+            mock_llm = MagicMock()
+            mock_get_llm.return_value = mock_llm
+
+            mock_chain = MagicMock()
+            mock_chain.invoke.return_value = {"entry_type": "requirement"}
+            mock_get_chain.return_value = mock_chain
+
+            result = processor.classify_entry_type(content)
+
+            assert result == EntryType.REQUIREMENT
+
+    def test_classify_entry_type_transcript(self, processor: LLMProcessor) -> None:
+        """Test classification of meeting transcript."""
+        content = """Reunião com stakeholders:
+        João: Precisamos da funcionalidade de exportação em PDF.
+        Maria: Concordo, mas precisamos definir o prazo primeiro.
+        Pedro: Podemos entregar em 2 sprints."""
+
+        with patch.object(processor.client, "is_available", return_value=True), \
+             patch.object(processor.client, "get_llm") as mock_get_llm, \
+             patch("refineflow.llm.processor_langchain.get_classification_chain") as mock_get_chain:
+
+            mock_llm = MagicMock()
+            mock_get_llm.return_value = mock_llm
+
+            mock_chain = MagicMock()
+            mock_chain.invoke.return_value = {"entry_type": "transcript"}
+            mock_get_chain.return_value = mock_chain
+
+            result = processor.classify_entry_type(content)
+
+            assert result == EntryType.TRANSCRIPT
+
+    def test_classify_entry_type_risk(self, processor: LLMProcessor) -> None:
+        """Test classification of identified risk."""
+        content = (
+            "Existe o risco de a API externa não suportar a carga necessária, "
+            "o que pode causar timeouts."
+        )
+
+        with patch.object(processor.client, "is_available", return_value=True), \
+             patch.object(processor.client, "get_llm") as mock_get_llm, \
+             patch("refineflow.llm.processor_langchain.get_classification_chain") as mock_get_chain:
+
+            mock_llm = MagicMock()
+            mock_get_llm.return_value = mock_llm
+
+            mock_chain = MagicMock()
+            mock_chain.invoke.return_value = {"entry_type": "risk"}
+            mock_get_chain.return_value = mock_chain
+
+            result = processor.classify_entry_type(content)
+
+            assert result == EntryType.RISK
+
+    def test_classify_entry_type_llm_unavailable(self, processor: LLMProcessor) -> None:
+        """Test that classification raises exception when LLM is unavailable."""
+        content = "Some content to classify"
+
+        # Mock LLM as unavailable
+        with patch.object(processor.client, "is_available", return_value=False):
+            # Should raise ValueError when LLM is not available
+            with pytest.raises(ValueError, match="OpenAI not configured"):
+                processor.classify_entry_type(content)
+
+    @patch("refineflow.cli.flows.ActivityStorage")
+    @patch("refineflow.cli.flows.console")
+    @patch("refineflow.cli.flows.questionary")
+    @patch("refineflow.cli.flows.LLMProcessor")
+    def test_manual_override_classification(
+        self, mock_processor_class, mock_questionary, mock_console, mock_storage_class
+    ) -> None:
+        """
+        Test the manual override flow when user rejects auto-classification.
+        
+        Scenario:
+        1. User enters content
+        2. LLM auto-classifies as DECISION
+        3. User is prompted: "Tipo detectado: Decisão. Está correto?"
+        4. User rejects with "n" (não)
+        5. System shows manual selection UI
+        6. User manually selects REQUIREMENT
+        7. Entry is created with REQUIREMENT (not DECISION)
+        """
+        # Arrange
+        slug = "test-activity"
+        content = "Some content here"
+
+        # Mock storage
+        mock_storage = MagicMock()
+        mock_storage.is_finalized.return_value = False
+        mock_storage.load_activity.return_value = MagicMock()  # Mock activity
+        mock_storage.load_state.return_value = ActivityState(
+            summary="",
+            action_items=[],
+            open_questions={},
+            decisions=[],
+            functional_requirements=[],
+            non_functional_requirements=[],
+            identified_risks=[],
+            dependencies=[],
+            metrics=[],
+            costs=[],
+            information_gaps=[],
+            last_updated=get_timestamp(),
+        )
+        mock_storage_class.return_value = mock_storage
+
+        # Mock LLM processor to return DECISION
+        mock_processor = MagicMock()
+        mock_processor.classify_entry_type.return_value = EntryType.DECISION
+        # Mock process_entry - we don't care about the result for this test
+        mock_processor.process_entry.return_value = None
+        mock_processor_class.return_value = mock_processor
+
+        # Mock questionary for user input
+        # 1. Select input method: "Múltiplas linhas (terminal)"
+        # 2. Confirmation of auto-classification: False (user rejects)
+        # 3. Manual selection: "Requisito"
+        mock_select = MagicMock()
+        mock_select.ask.side_effect = [
+            "Múltiplas linhas (terminal)",  # Input method
+            "Requisito",  # Manual type selection (after rejection)
+        ]
+
+        mock_confirm = MagicMock()
+        mock_confirm.ask.return_value = False  # User rejects auto-classification
+
+        mock_questionary.select.return_value = mock_select
+        mock_questionary.confirm.return_value = mock_confirm
+
+        # Mock get_multiline_input to return content
+        with patch("refineflow.cli.flows.get_multiline_input", return_value=content):
+            # Act
+            from refineflow.cli.flows import add_entry_flow
+            add_entry_flow(slug)
+
+        # Assert
+        # 1. LLM classification was called
+        mock_processor.classify_entry_type.assert_called_once_with(content)
+
+        # 2. User was asked to confirm the detected type
+        mock_questionary.confirm.assert_called_once_with("Está correto?", default=True)
+
+        # 3. Manual selection was shown (called twice: once for input method, once for type)
+        assert mock_questionary.select.call_count == 2
+        manual_selection_call = mock_questionary.select.call_args_list[1]
+        assert manual_selection_call[0][0] == "Tipo de Entrada:"
+        assert "Requisito" in manual_selection_call[1]["choices"]
+
+        # 4. Entry was saved with REQUIREMENT type (not DECISION)
+        # The storage.append_to_log should be called with an Entry having REQUIREMENT type
+        assert mock_storage.append_to_log.called
+        saved_entry = mock_storage.append_to_log.call_args[0][1]  # Second argument is the entry
+        assert saved_entry.entry_type == EntryType.REQUIREMENT
+        assert saved_entry.content == content
+
 def create_mock_llm_response(processor, json_response: str):
     """Helper context manager to mock LLM responses for testing."""
     from contextlib import contextmanager

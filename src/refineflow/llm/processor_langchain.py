@@ -2,13 +2,14 @@
 
 import json
 
-from refineflow.core.models import Activity, Entry
+from refineflow.core.models import Activity, Entry, EntryType
 from refineflow.core.state import ActivityState
 from refineflow.llm.client_langchain import OpenAIClient
 from refineflow.llm.langchain_prompts import (
     StateUpdate,
     get_canvas_chain,
     get_chat_chain,
+    get_classification_chain,
     get_extraction_chain,
     get_jira_chain,
 )
@@ -305,3 +306,51 @@ class LLMProcessor:
 
 **Descrição**: Implementar componentes de frontend
 """
+
+    def classify_entry_type(self, content: str) -> EntryType:
+        """
+        Classify the entry type based on content using AI.
+
+        Args:
+            content: Entry content to classify
+
+        Returns:
+            Detected EntryType
+
+        Raises:
+            ValueError: If classification fails or LLM is unavailable
+        """
+        if not self.client.is_available():
+            logger.warning("OpenAI not available, cannot classify entry type")
+            raise ValueError("OpenAI not configured")
+
+        try:
+            # Get LLM configured for extraction/classification
+            llm = self.client.get_llm(task_type="extraction")
+            if not llm:
+                raise ValueError("Failed to get LLM instance")
+
+            # Create classification chain
+            chain = get_classification_chain(llm)
+
+            # Invoke chain
+            inputs = {"content": content}
+            result = chain.invoke(inputs)
+
+            logger.debug(f"Classification result: {result}")
+
+            # Extract entry_type from result
+            entry_type_str = result.get("entry_type", "note")
+
+            # Convert to EntryType enum
+            try:
+                entry_type = EntryType(entry_type_str)
+                logger.info(f"Classified entry as: {entry_type.value}")
+                return entry_type
+            except ValueError:
+                logger.warning(f"Invalid entry type '{entry_type_str}', defaulting to NOTE")
+                return EntryType.NOTE
+
+        except Exception as e:
+            logger.error(f"Failed to classify entry type: {e}", exc_info=True)
+            raise ValueError(f"Classification failed: {e}")
