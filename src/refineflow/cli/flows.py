@@ -150,7 +150,9 @@ def show_activity_status(slug: str) -> None:
     summary_display = state.summary[:100] + "..." if len(state.summary) > 100 else state.summary
     table.add_row("Resumo", summary_display)
     table.add_row("Itens de Ação", str(len(state.action_items)))
-    table.add_row("Questões Abertas", str(len(state.open_questions)))
+    # Calculate total questions across all categories
+    total_questions = sum(len(questions) for questions in state.open_questions.values())
+    table.add_row("Questões Abertas", str(total_questions))
 
     console.print(table)
     console.print()

@@ -45,7 +45,14 @@ Exemplo de formato esperado:
 {{
   "summary": "texto do resumo",
   "action_items": [],
-  "open_questions": [],
+  "open_questions": {{
+    "Frontend": [],
+    "Backend": [],
+    "Arquitetura": [],
+    "Produto": [],
+    "UX/UI": [],
+    "Geral": []
+  }},
   "decisions": [],
   "functional_requirements": [],
   "non_functional_requirements": [],

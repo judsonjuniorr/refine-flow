@@ -14,7 +14,11 @@ class StateUpdate(BaseModel):
         default_factory=list,
         description="Itens de ação com chaves 'action', 'owner', 'status'",
     )
-    open_questions: list[str] = Field(default_factory=list, description="Perguntas abertas")
+    open_questions: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description="Perguntas categorizadas por Frontend, Backend, Arquitetura, "
+        "Produto, UX/UI, Geral",
+    )
     decisions: list[dict] = Field(
         default_factory=list,
         description="Decisões com chaves 'decision', 'rationale', 'date'",

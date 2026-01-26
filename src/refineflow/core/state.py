@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ActivityState(BaseModel):
@@ -19,7 +19,10 @@ class ActivityState(BaseModel):
     action_items: list[dict[str, str]] = Field(
         default_factory=list, description="Open action items (action, owner, status keys)"
     )
-    open_questions: list[str] = Field(default_factory=list, description="Open questions")
+    open_questions: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description="Categorized questions (Frontend, Backend, Arquitetura, Produto, UX/UI, Geral)",
+    )
     decisions: list[dict[str, str]] = Field(
         default_factory=list, description="Documented decisions (decision, rationale, date keys)"
     )
@@ -59,3 +62,23 @@ class ActivityState(BaseModel):
 
     # Last updated
     last_updated: str = Field(default="", description="Last update timestamp")
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_open_questions(cls, data: Any) -> Any:
+        """
+        Migrate open_questions from old list format to new dict format.
+
+        If open_questions is a list (old format), convert it to a dict
+        with all questions in the "Geral" category.
+        """
+        if isinstance(data, dict):
+            open_questions = data.get("open_questions")
+
+            # If it's a list (old format), migrate to dict with "Geral" category
+            if isinstance(open_questions, list):
+                data["open_questions"] = {"Geral": open_questions}
+
+        return data
+
+

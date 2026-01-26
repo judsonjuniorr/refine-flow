@@ -9,7 +9,7 @@ def test_state_creation_empty() -> None:
     state = ActivityState()
     assert state.summary == ""
     assert state.action_items == []
-    assert state.open_questions == []
+    assert state.open_questions == {}
     assert state.information_gaps == []
 
 
@@ -38,6 +38,7 @@ def test_state_with_action_items() -> None:
 
 def test_state_with_questions_and_decisions() -> None:
     """Test ActivityState with questions and decisions."""
+    # Test backward compatibility - old list format auto-migrates to dict
     state = ActivityState(
         open_questions=[
             "Which OAuth provider should we use?",
@@ -51,7 +52,10 @@ def test_state_with_questions_and_decisions() -> None:
             }
         ],
     )
-    assert len(state.open_questions) == 2
+    # After migration, questions are in "Geral" category
+    assert isinstance(state.open_questions, dict)
+    assert "Geral" in state.open_questions
+    assert len(state.open_questions["Geral"]) == 2
     assert len(state.decisions) == 1
     assert "OAuth 2.0" in state.decisions[0]["decision"]
 
