@@ -104,13 +104,16 @@ class LLMProcessor:
             try:
                 updated_state = ActivityState(**result)
                 updated_state.last_updated = get_timestamp()
+
+                # Merge with existing state to preserve previous entries
+                merged_state = current_state.merge_with(updated_state)
             except Exception as validation_error:
                 logger.error(f"Failed to create ActivityState: {validation_error}")
                 logger.error(f"Result data: {result}")
                 return None
 
             logger.info("Successfully extracted and updated activity state via LangChain")
-            return updated_state
+            return merged_state
 
         except Exception as e:
             logger.error(f"Failed to process entry with LangChain: {e}")

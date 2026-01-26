@@ -159,3 +159,143 @@ def test_state_serialization() -> None:
     assert isinstance(data, dict)
     assert data["summary"] == "Test summary"
     assert len(data["action_items"]) == 1
+
+
+def test_state_merge_basic() -> None:
+    """Test basic state merging."""
+    existing = ActivityState(
+        summary="Original summary",
+        functional_requirements=["Req 1"],
+        open_questions={"Frontend": ["Question 1"]},
+        last_updated="2026-01-20T10:00:00",
+    )
+
+    new = ActivityState(
+        summary="Updated summary",
+        functional_requirements=["Req 2"],
+        open_questions={"Backend": ["Question 2"]},
+        last_updated="2026-01-20T11:00:00",
+    )
+
+    merged = existing.merge_with(new)
+
+    # New summary should be used
+    assert merged.summary == "Updated summary"
+
+    # Requirements should be merged
+    assert len(merged.functional_requirements) == 2
+    assert "Req 1" in merged.functional_requirements
+    assert "Req 2" in merged.functional_requirements
+
+    # Questions should be merged by category
+    assert "Frontend" in merged.open_questions
+    assert "Backend" in merged.open_questions
+    assert len(merged.open_questions["Frontend"]) == 1
+    assert len(merged.open_questions["Backend"]) == 1
+
+    # Timestamp should be updated
+    assert merged.last_updated == "2026-01-20T11:00:00"
+
+
+def test_state_merge_same_category_questions() -> None:
+    """Test merging questions in the same category."""
+    existing = ActivityState(
+        open_questions={
+            "Frontend": ["Question A", "Question B"],
+            "Backend": ["Question X"],
+        }
+    )
+
+    new = ActivityState(
+        open_questions={
+            "Frontend": ["Question C"],
+            "Backend": ["Question Y", "Question Z"],
+        }
+    )
+
+    merged = existing.merge_with(new)
+
+    # Frontend should have all 3 questions
+    assert len(merged.open_questions["Frontend"]) == 3
+    assert "Question A" in merged.open_questions["Frontend"]
+    assert "Question B" in merged.open_questions["Frontend"]
+    assert "Question C" in merged.open_questions["Frontend"]
+
+    # Backend should have all 3 questions
+    assert len(merged.open_questions["Backend"]) == 3
+    assert "Question X" in merged.open_questions["Backend"]
+    assert "Question Y" in merged.open_questions["Backend"]
+    assert "Question Z" in merged.open_questions["Backend"]
+
+
+def test_state_merge_deduplication() -> None:
+    """Test that merge deduplicates identical items."""
+    existing = ActivityState(
+        functional_requirements=["Requirement A", "Requirement B"],
+        open_questions={"Frontend": ["Question 1", "Question 2"]},
+    )
+
+    new = ActivityState(
+        functional_requirements=["Requirement B", "Requirement C"],  # B is duplicate
+        open_questions={"Frontend": ["Question 2", "Question 3"]},  # Q2 is duplicate
+    )
+
+    merged = existing.merge_with(new)
+
+    # Requirements should be deduplicated
+    assert len(merged.functional_requirements) == 3
+    assert merged.functional_requirements.count("Requirement B") == 1
+
+    # Questions should be deduplicated (case-insensitive)
+    assert len(merged.open_questions["Frontend"]) == 3
+    question_texts = [q.lower() for q in merged.open_questions["Frontend"]]
+    assert question_texts.count("question 2") == 1
+
+
+def test_state_merge_complex_types() -> None:
+    """Test merging complex dict-based fields."""
+    existing = ActivityState(
+        action_items=[
+            {"action": "Task 1", "owner": "Alice", "status": "open"}
+        ],
+        identified_risks=[
+            {"risk": "Risk A", "impact": "High", "mitigation": "Plan A"}
+        ],
+    )
+
+    new = ActivityState(
+        action_items=[
+            {"action": "Task 2", "owner": "Bob", "status": "open"}
+        ],
+        identified_risks=[
+            {"risk": "Risk B", "impact": "Medium", "mitigation": "Plan B"}
+        ],
+    )
+
+    merged = existing.merge_with(new)
+
+    # Both action items should be present
+    assert len(merged.action_items) == 2
+    assert any(item["action"] == "Task 1" for item in merged.action_items)
+    assert any(item["action"] == "Task 2" for item in merged.action_items)
+
+    # Both risks should be present
+    assert len(merged.identified_risks) == 2
+    assert any(risk["risk"] == "Risk A" for risk in merged.identified_risks)
+    assert any(risk["risk"] == "Risk B" for risk in merged.identified_risks)
+
+
+def test_state_merge_preserves_empty_summary() -> None:
+    """Test that empty new summary doesn't override existing one."""
+    existing = ActivityState(
+        summary="Important existing summary",
+    )
+
+    new = ActivityState(
+        summary="",  # Empty summary
+    )
+
+    merged = existing.merge_with(new)
+
+    # Should keep existing summary when new is empty
+    assert merged.summary == "Important existing summary"

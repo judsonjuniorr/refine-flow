@@ -68,6 +68,39 @@ Analise cuidadosamente a entrada e identifique:
 - Métricas e estimativas de custo (utilize modelo T-Shirt quando aplicável)
 - Lacunas de informação
 
+**Categorização de Questões Abertas:**
+
+Categorize cada questão identificada nas seguintes categorias. Uma questão pode aparecer em \
+múltiplas categorias se for relevante para múltiplos domínios:
+
+- **Frontend**: Questões sobre componentes UI, lógica client-side, implementação de interface de usuário, \
+bibliotecas frontend, frameworks (React, Vue, Angular), validação de formulários, etc.
+
+- **Backend**: Questões sobre APIs, serviços, banco de dados, lógica server-side, processamento de dados, \
+autenticação, autorização, endpoints, integrações backend, etc.
+
+- **Arquitetura**: Questões sobre design de sistema, infraestrutura, escalabilidade, padrões arquiteturais, \
+microserviços vs monolito, cloud, DevOps, observabilidade, etc.
+
+- **Produto**: Questões sobre requisitos de negócio, features, histórias de usuário, priorização, \
+roadmap, decisões de produto, métricas de negócio, etc.
+
+- **UX/UI**: Questões sobre design de experiência do usuário, usabilidade, fluxos de usuário, \
+design visual, acessibilidade, interações, wireframes, protótipos, etc.
+
+- **Geral**: Questões sobre gestão de projeto (prazos, orçamento, equipe, processo) OU questões \
+que não se encaixam claramente nas categorias técnicas acima.
+
+**Exemplos de Categorização:**
+- "Como validar o CPF no formulário?" → Frontend, Backend
+- "Qual é a capacidade máxima do servidor?" → Backend, Arquitetura  
+- "O usuário espera notificação por email ou SMS?" → Produto, UX/UI
+- "Qual biblioteca de validação usar?" → Frontend (se contexto é UI) ou Backend (se contexto é API)
+- "Qual prazo do projeto?" → Geral
+
+**IMPORTANTE**: Categorize cada questão na(s) categoria(s) mais apropriada(s). Se uma questão é \
+relevante para múltiplos domínios, coloque-a em todas as categorias aplicáveis.
+
 **Modelo de Estimativas T-Shirt Sizing:**
 - PP: Muito simples (até 2 semanas) - Ajuste pontual, 1 endpoint simples
 - P: Simples/Baixa complexidade (até 1 mês) - Pequena feature isolada

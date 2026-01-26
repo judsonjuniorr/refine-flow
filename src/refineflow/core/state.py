@@ -81,4 +81,76 @@ class ActivityState(BaseModel):
 
         return data
 
+    def merge_with(self, new_state: "ActivityState") -> "ActivityState":
+        """
+        Merge this state with a new state from LLM extraction.
+
+        Strategy:
+        - Use new summary (latest is most complete)
+        - Merge lists by appending new items (deduplicated where possible)
+        - For open_questions dict, merge by category (deduplicate questions)
+        - Update last_updated to new timestamp
+
+        Args:
+            new_state: New state from LLM extraction
+
+        Returns:
+            Merged ActivityState
+        """
+        # Helper to deduplicate lists while preserving order
+        def dedupe_list(items: list) -> list:
+            seen = set()
+            result = []
+            for item in items:
+                # For dict items, use a tuple of sorted items as key
+                if isinstance(item, dict):
+                    key = tuple(sorted(item.items()))
+                else:
+                    key = item
+                if key not in seen:
+                    seen.add(key)
+                    result.append(item)
+            return result
+
+        # Helper to deduplicate string lists (case-insensitive)
+        def dedupe_strings(items: list[str]) -> list[str]:
+            seen = set()
+            result = []
+            for item in items:
+                key = item.lower().strip()
+                if key not in seen and key:
+                    seen.add(key)
+                    result.append(item)
+            return result
+
+        # Merge open_questions by category
+        merged_questions = dict(self.open_questions)
+        for category, questions in new_state.open_questions.items():
+            if category in merged_questions:
+                # Merge questions for existing category
+                combined = merged_questions[category] + questions
+                merged_questions[category] = dedupe_strings(combined)
+            else:
+                # New category
+                merged_questions[category] = dedupe_strings(questions)
+
+        return ActivityState(
+            summary=new_state.summary if new_state.summary else self.summary,
+            action_items=dedupe_list(self.action_items + new_state.action_items),
+            open_questions=merged_questions,
+            decisions=dedupe_list(self.decisions + new_state.decisions),
+            functional_requirements=dedupe_strings(
+                self.functional_requirements + new_state.functional_requirements
+            ),
+            non_functional_requirements=dedupe_strings(
+                self.non_functional_requirements + new_state.non_functional_requirements
+            ),
+            identified_risks=dedupe_list(self.identified_risks + new_state.identified_risks),
+            dependencies=dedupe_list(self.dependencies + new_state.dependencies),
+            metrics=dedupe_list(self.metrics + new_state.metrics),
+            costs=dedupe_list(self.costs + new_state.costs),
+            information_gaps=dedupe_strings(self.information_gaps + new_state.information_gaps),
+            canvas=new_state.canvas if new_state.canvas else self.canvas,
+            last_updated=new_state.last_updated,
+        )
 
