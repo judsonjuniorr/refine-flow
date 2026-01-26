@@ -3,6 +3,7 @@
 import questionary
 from rich.console import Console
 from rich.markdown import Markdown
+from rich.panel import Panel
 from rich.table import Table
 
 from refineflow.cli.inputs import get_multiline_input
@@ -104,6 +105,7 @@ def activity_menu(slug: str) -> None:
             choices=[
                 "➕ Adicionar Informação",
                 "💬 Conversar com Contexto",
+                "❓ Ver Questões Abertas",
                 "📊 Gerar Business Case Canvas",
                 "📤 Exportar para Jira",
                 "✅ Finalizar Atividade",
@@ -119,6 +121,9 @@ def activity_menu(slug: str) -> None:
 
         elif choice == "💬 Conversar com Contexto":
             chat_flow(slug)
+
+        elif choice == "❓ Ver Questões Abertas":
+            view_questions_flow(slug)
 
         elif choice == "📊 Gerar Business Case Canvas":
             generate_canvas_flow(slug)
@@ -167,11 +172,11 @@ def add_entry_flow(slug: str) -> None:
         return
 
     # Select entry type
+    # Note: "Pergunta" is not included - questions are extracted automatically by LLM
     entry_type_choice = questionary.select(
         "Tipo de Entrada:",
         choices=[
             "Nota",
-            "Pergunta",
             "Resposta",
             "Transcrição",
             "Descrição Jira",
@@ -188,9 +193,9 @@ def add_entry_flow(slug: str) -> None:
         return
 
     # Map Portuguese choices to EntryType enum
+    # Note: QUESTION is not in the map - questions are extracted automatically by LLM
     entry_type_map = {
         "Nota": EntryType.NOTE,
-        "Pergunta": EntryType.QUESTION,
         "Resposta": EntryType.ANSWER,
         "Transcrição": EntryType.TRANSCRIPT,
         "Descrição Jira": EntryType.JIRA_DESCRIPTION,
@@ -371,3 +376,68 @@ def view_finalized_activities() -> None:
         )
 
     console.print(table)
+
+
+def view_questions_flow(slug: str) -> None:
+    """Flow for viewing categorized open questions."""
+    storage = ActivityStorage()
+    state = storage.load_state(slug)
+
+    if not state:
+        console.print("[red]Falha ao carregar dados da atividade.[/red]")
+        return
+
+    # Category icons mapping
+    category_icons = {
+        "Frontend": "🎨",
+        "Backend": "⚙️",
+        "Arquitetura": "📐",
+        "Produto": "📦",
+        "UX/UI": "🎭",
+        "Geral": "💡",
+    }
+
+    # Filter out empty categories and count total questions
+    questions_by_category = {
+        category: questions
+        for category, questions in state.open_questions.items()
+        if questions
+    }
+
+    total_questions = sum(len(questions) for questions in questions_by_category.values())
+
+    # Handle no questions case
+    if total_questions == 0:
+        console.print("\n[yellow]Nenhuma questão em aberto no momento.[/yellow]\n")
+        return
+
+    # Build the display content
+    content_parts = []
+
+    for category, questions in questions_by_category.items():
+        icon = category_icons.get(category, "❓")
+        category_header = f"{icon} {category} ({len(questions)})"
+        content_parts.append(f"[bold cyan]{category_header}[/bold cyan]")
+
+        for question in questions:
+            content_parts.append(f"  • {question}")
+
+        content_parts.append("")  # Empty line between categories
+
+    # Remove trailing empty line
+    if content_parts and content_parts[-1] == "":
+        content_parts.pop()
+
+    content = "\n".join(content_parts)
+
+    # Display in a panel
+    panel = Panel(
+        content,
+        title=f"[bold]📋 Questões Abertas ({total_questions} questões)[/bold]",
+        border_style="cyan",
+        padding=(1, 2),
+    )
+
+    console.print("\n")
+    console.print(panel)
+    console.print("\n")
