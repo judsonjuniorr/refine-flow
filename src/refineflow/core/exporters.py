@@ -5,7 +5,7 @@ import json
 from io import StringIO
 
 from refineflow.core.state import ActivityState
-from refineflow.llm.processor_langchain import LLMProcessor
+from refineflow.llm.processor_langchain import LLMProcessor, validate_jira_structure
 from refineflow.storage.filesystem import ActivityStorage
 from refineflow.storage.templates import CANVAS_TEMPLATE
 from refineflow.utils.logger import get_logger
@@ -174,6 +174,18 @@ class JiraExporter:
 
         # Use LLM to generate if available
         jira_content = self.processor.generate_jira_export(activity, state)
+
+        # Validate the generated content (non-blocking)
+        try:
+            is_valid, warnings = validate_jira_structure(jira_content)
+
+            # Log warnings if any, but always continue with export
+            if warnings:
+                for warning in warnings:
+                    logger.warning(f"Jira validation warning: {warning}")
+        except Exception as e:
+            # If validation itself fails, log error but continue with export
+            logger.error(f"Validation failed with error: {e}")
 
         header = f"""# Jira Export: {activity.title}
 
