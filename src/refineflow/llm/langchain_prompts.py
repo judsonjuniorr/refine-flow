@@ -14,7 +14,11 @@ class StateUpdate(BaseModel):
         default_factory=list,
         description="Itens de ação com chaves 'action', 'owner', 'status'",
     )
-    open_questions: list[str] = Field(default_factory=list, description="Perguntas abertas")
+    open_questions: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description="Perguntas categorizadas por Frontend, Backend, Arquitetura, "
+        "Produto, UX/UI, Geral",
+    )
     decisions: list[dict] = Field(
         default_factory=list,
         description="Decisões com chaves 'decision', 'rationale', 'date'",
@@ -45,6 +49,15 @@ class StateUpdate(BaseModel):
     )
 
 
+class EntryTypeClassification(BaseModel):
+    """Schema for entry type classification."""
+
+    entry_type: str = Field(
+        description="Tipo da entrada: note, answer, transcript, jira_description, "
+        "decision, requirement, risk, metric, cost, ou dependency"
+    )
+
+
 # Template para extração de estado
 EXTRACTION_TEMPLATE = ChatPromptTemplate.from_messages(
     [
@@ -63,6 +76,39 @@ Analise cuidadosamente a entrada e identifique:
 - Dependências internas e externas
 - Métricas e estimativas de custo (utilize modelo T-Shirt quando aplicável)
 - Lacunas de informação
+
+**Categorização de Questões Abertas:**
+
+Categorize cada questão identificada nas seguintes categorias. Uma questão pode aparecer em \
+múltiplas categorias se for relevante para múltiplos domínios:
+
+- **Frontend**: Questões sobre componentes UI, lógica client-side, implementação de interface de usuário, \
+bibliotecas frontend, frameworks (React, Vue, Angular), validação de formulários, etc.
+
+- **Backend**: Questões sobre APIs, serviços, banco de dados, lógica server-side, processamento de dados, \
+autenticação, autorização, endpoints, integrações backend, etc.
+
+- **Arquitetura**: Questões sobre design de sistema, infraestrutura, escalabilidade, padrões arquiteturais, \
+microserviços vs monolito, cloud, DevOps, observabilidade, etc.
+
+- **Produto**: Questões sobre requisitos de negócio, features, histórias de usuário, priorização, \
+roadmap, decisões de produto, métricas de negócio, etc.
+
+- **UX/UI**: Questões sobre design de experiência do usuário, usabilidade, fluxos de usuário, \
+design visual, acessibilidade, interações, wireframes, protótipos, etc.
+
+- **Geral**: Questões sobre gestão de projeto (prazos, orçamento, equipe, processo) OU questões \
+que não se encaixam claramente nas categorias técnicas acima.
+
+**Exemplos de Categorização:**
+- "Como validar o CPF no formulário?" → Frontend, Backend
+- "Qual é a capacidade máxima do servidor?" → Backend, Arquitetura  
+- "O usuário espera notificação por email ou SMS?" → Produto, UX/UI
+- "Qual biblioteca de validação usar?" → Frontend (se contexto é UI) ou Backend (se contexto é API)
+- "Qual prazo do projeto?" → Geral
+
+**IMPORTANTE**: Categorize cada questão na(s) categoria(s) mais apropriada(s). Se uma questão é \
+relevante para múltiplos domínios, coloque-a em todas as categorias aplicáveis.
 
 **Modelo de Estimativas T-Shirt Sizing:**
 - PP: Muito simples (até 2 semanas) - Ajuste pontual, 1 endpoint simples
@@ -254,3 +300,73 @@ def get_canvas_chain(llm):
     """Create canvas generation chain."""
     parser = StrOutputParser()
     return CANVAS_TEMPLATE | llm | parser
+
+
+# ============================================================================
+# PHASE 4: Entry Type Classification
+# ============================================================================
+
+# Template para classificação de tipo de entrada
+CLASSIFICATION_TEMPLATE = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """Você é um assistente especializado em classificar tipos de entrada em um sistema de refinamento de atividades.
+
+Sua tarefa é analisar o conteúdo fornecido e determinar qual tipo de entrada ele representa.
+
+**Tipos de Entrada Disponíveis:**
+
+1. **note** (Nota): Observação geral, comentário, informação adicional sem compromisso formal.
+   - Exemplo: "O sistema atual usa MySQL mas talvez possamos migrar para PostgreSQL no futuro."
+
+2. **answer** (Resposta): Resposta direta a uma questão previamente identificada.
+   - Exemplo: "Resposta à questão sobre autenticação: usaremos OAuth 2.0 com JWT."
+
+3. **transcript** (Transcrição): Transcrição de reunião, conversa ou discussão entre múltiplas pessoas.
+   - Exemplo: "João: Precisamos definir o prazo. Maria: Sugiro 2 sprints."
+
+4. **jira_description** (Descrição Jira): Descrição formal de tarefa ou história de usuário importada do Jira.
+   - Exemplo: "Como usuário, quero poder recuperar minha senha por email para poder acessar o sistema."
+
+5. **decision** (Decisão): Decisão tomada pela equipe ou stakeholders, geralmente com justificativa.
+   - Exemplo: "Decidimos usar PostgreSQL como banco de dados principal por sua robustez."
+
+6. **requirement** (Requisito): Requisito funcional ou não-funcional do sistema.
+   - Exemplo: "O sistema deve permitir que usuários façam login com email e senha."
+
+7. **risk** (Risco): Risco identificado com possível impacto e/ou mitigação.
+   - Exemplo: "Existe o risco de a API externa não suportar a carga, causando timeouts."
+
+8. **metric** (Métrica): Métrica de sucesso, KPI ou indicador de desempenho.
+   - Exemplo: "A taxa de conversão deve ser de pelo menos 15%."
+
+9. **cost** (Custo): Estimativa de custo, orçamento ou recursos financeiros.
+   - Exemplo: "O custo estimado da infraestrutura cloud é de R$ 5.000/mês."
+
+10. **dependency** (Dependência): Dependência técnica ou de processo com outros sistemas/equipes.
+    - Exemplo: "Dependemos da API do time de Pagamentos para processar transações."
+
+**Regras de Classificação:**
+- Analise o conteúdo cuidadosamente
+- Escolha o tipo MAIS ESPECÍFICO que se aplica
+- Se houver dúvida, prefira 'note' (é o tipo mais genérico)
+- Decisões geralmente contêm palavras como "decidimos", "optamos", "escolhemos"
+- Requisitos geralmente contêm "deve", "precisa", "é necessário"
+- Riscos geralmente contêm "risco", "pode causar", "potencial problema"
+- Transcrições têm formato de diálogo com múltiplos interlocutores
+
+{format_instructions}""",
+        ),
+        ("human", "Classifique o seguinte conteúdo:\n\n{content}"),
+    ]
+)
+
+
+def get_classification_chain(llm):
+    """Create entry type classification chain."""
+    parser = JsonOutputParser(pydantic_object=EntryTypeClassification)
+    prompt = CLASSIFICATION_TEMPLATE.partial(
+        format_instructions=parser.get_format_instructions()
+    )
+    return prompt | llm | parser

@@ -115,3 +115,119 @@ def test_activity_to_dict() -> None:
     assert data["slug"] == "test"
     assert data["status"] == "in_progress"
     assert isinstance(data, dict)
+
+
+# Phase 1: Categorized Questions Tests (TDD - written FIRST)
+
+
+def test_categorized_questions_model() -> None:
+    """Test ActivityState with new categorized questions dict structure."""
+    from refineflow.core.state import ActivityState
+
+    timestamp = get_timestamp()
+    state = ActivityState(
+        summary="Test activity",
+        open_questions={
+            "Frontend": ["Como implementar o componente X?", "Qual biblioteca UI usar?"],
+            "Backend": ["Como estruturar a API?"],
+            "Arquitetura": ["Qual padrão usar?"],
+            "Produto": [],
+            "UX/UI": ["Qual o fluxo do usuário?"],
+            "Geral": ["Quando começa o projeto?"],
+        },
+        last_updated=timestamp,
+    )
+
+    assert isinstance(state.open_questions, dict)
+    assert len(state.open_questions["Frontend"]) == 2
+    assert len(state.open_questions["Backend"]) == 1
+    assert len(state.open_questions["Produto"]) == 0
+    assert "Como implementar o componente X?" in state.open_questions["Frontend"]
+    assert "Como estruturar a API?" in state.open_questions["Backend"]
+
+
+def test_backward_compatibility_flat_list() -> None:
+    """Test auto-migration from old flat list format to new dict format."""
+    from refineflow.core.state import ActivityState
+
+    # Simulate loading old state.json with flat list
+    old_data = {
+        "summary": "Old activity",
+        "open_questions": ["Pergunta 1", "Pergunta 2", "Pergunta 3"],
+        "action_items": [],
+        "decisions": [],
+        "functional_requirements": [],
+        "non_functional_requirements": [],
+        "identified_risks": [],
+        "dependencies": [],
+        "metrics": [],
+        "costs": [],
+        "information_gaps": [],
+        "canvas": {},
+        "last_updated": get_timestamp(),
+    }
+
+    # Should auto-migrate to dict with "Geral" category
+    state = ActivityState(**old_data)
+
+    assert isinstance(state.open_questions, dict)
+    assert "Geral" in state.open_questions
+    assert len(state.open_questions["Geral"]) == 3
+    assert "Pergunta 1" in state.open_questions["Geral"]
+    assert "Pergunta 2" in state.open_questions["Geral"]
+    assert "Pergunta 3" in state.open_questions["Geral"]
+
+
+def test_multi_category_questions() -> None:
+    """Test that same question can exist in multiple categories."""
+    from refineflow.core.state import ActivityState
+
+    timestamp = get_timestamp()
+    same_question = "Qual a estimativa de prazo?"
+
+    state = ActivityState(
+        summary="Multi-category test",
+        open_questions={
+            "Frontend": [same_question, "Outra pergunta frontend"],
+            "Backend": [same_question, "Outra pergunta backend"],
+            "Produto": [same_question],
+            "Geral": [],
+        },
+        last_updated=timestamp,
+    )
+
+    # Verify same question appears in multiple categories
+    assert same_question in state.open_questions["Frontend"]
+    assert same_question in state.open_questions["Backend"]
+    assert same_question in state.open_questions["Produto"]
+
+    # Count total occurrences
+    total_occurrences = sum(
+        1 for category_questions in state.open_questions.values()
+        if same_question in category_questions
+    )
+    assert total_occurrences == 3
+
+
+def test_empty_categories_allowed() -> None:
+    """Test that categories can have empty lists."""
+    from refineflow.core.state import ActivityState
+
+    timestamp = get_timestamp()
+    state = ActivityState(
+        summary="Empty categories test",
+        open_questions={
+            "Frontend": [],
+            "Backend": ["Uma pergunta"],
+            "Arquitetura": [],
+            "Produto": [],
+            "UX/UI": [],
+            "Geral": [],
+        },
+        last_updated=timestamp,
+    )
+
+    assert len(state.open_questions["Frontend"]) == 0
+    assert len(state.open_questions["Backend"]) == 1
+    assert len(state.open_questions["Arquitetura"]) == 0
+    assert all(isinstance(questions, list) for questions in state.open_questions.values())

@@ -172,7 +172,8 @@ O sistema cria uma estrutura de pastas com templates Markdown.
 2. Escolha dentre as atividades disponíveis
 3. Visualize o painel de status com resumo e ações abertas
 4. Opções:
-   - Adicionar informação (notas, perguntas, decisões, transcrições, etc.)
+   - Adicionar informação (notas, decisões, transcrições, etc.)
+   - Ver questões abertas (categorizadas por Frontend, Backend, Arquitetura, Produto, UX/UI)
    - Conversar com contexto
    - Gerar Business Case Canvas
    - Exportar para Jira
@@ -182,7 +183,6 @@ O sistema cria uma estrutura de pastas com templates Markdown.
 
 Selecione o tipo de entrada:
 - **Nota**: Observação ou informação geral
-- **Pergunta**: Questão aberta ou incerteza
 - **Resposta**: Resposta a uma pergunta anterior
 - **Transcrição**: Transcrição de reunião ou conversa
 - **Decisão**: Decisão documentada
@@ -191,6 +191,8 @@ Selecione o tipo de entrada:
 - **Métrica**: Métrica de sucesso ou KPI
 - **Custo**: Estimativa de custo ou item de orçamento
 - **Dependência**: Dependência interna ou externa
+
+> **Nota**: Perguntas não são adicionadas manualmente. Elas são **extraídas automaticamente pelo LLM** a partir do conteúdo das entradas e categorizadas por domínio técnico (Frontend, Backend, Arquitetura, Produto, UX/UI, Geral).
 
 Escolha o método de entrada:
 - **Múltiplas linhas (terminal)**: Digite diretamente no terminal (ESC + Enter ou Ctrl+D para finalizar)
