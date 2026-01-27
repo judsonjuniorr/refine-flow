@@ -4,6 +4,16 @@ from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 
+# T-Shirt size to weeks conversion mapping
+TSHIRT_TO_WEEKS = {
+    "PP": 1,  # Até 2 semanas → 1 semana como referência
+    "P": 2,  # Até 1 mês → 2 semanas
+    "M": 4,  # Até 2 meses → 4 semanas
+    "G": 8,  # Até 3 meses → 8 semanas
+    "GG": 12,  # Até 5 meses → 12 semanas
+    "XGG": 20,  # Meses de trabalho → 20 semanas
+}
+
 
 # Pydantic models para output parsing
 class StateUpdate(BaseModel):
@@ -204,11 +214,27 @@ Cada tarefa deve incluir:
 - Descrição detalhada
 - Critérios de aceitação específicos e testáveis (incluindo critérios para testes unitários)
 - Estimativa T-Shirt (PP, P, M, G, GG, XGG)
+- Estimativa em semanas (número exato, mínimo 0.5 semanas)
 - Considerações sobre testes, observabilidade e riscos
 
 **Modelo de Estimativas T-Shirt:**
 - PP: até 2 semanas | P: até 1 mês | M: até 2 meses
-- G: até 3 meses | GG: até 5 meses | XGG: meses de trabalho""",
+- G: até 3 meses | GG: até 5 meses | XGG: meses de trabalho
+
+**Diretrizes para Estimativas em Semanas:**
+- Forneça números exatos (ex: 1.5, 2.5, 3.5 semanas), não intervalos
+- Estimativa mínima é de 0.5 semanas por tarefa
+- Use as estimativas T-Shirt como referência: PP≈1, P≈2, M≈4, G≈8, GG≈12, XGG≈20 semanas
+- Ajuste o número exato baseado na complexidade específica da tarefa
+- Formato recomendado: "Estimativa: M / 3.5 semanas" (T-shirt / semanas)
+
+**Exemplos de Estimativas:**
+- Tarefa pequena: "PP / 0.5 semanas"
+- Tarefa média-simples: "P / 1.5 semanas"
+- Tarefa média-complexa: "M / 3.5 semanas"
+- Tarefa grande: "G / 7 semanas"
+- Tarefa muito grande: "GG / 10 semanas"
+- Tarefa extremamente complexa: "XGG / 18 semanas""",
         ),
         (
             "human",
