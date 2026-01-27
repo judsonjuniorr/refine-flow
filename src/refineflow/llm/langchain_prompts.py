@@ -209,6 +209,23 @@ Estrutura esperada:
 - Os testes unitários devem seguir TDD: escrever o teste primeiro, depois implementar o código
 - Testes E2E devem ser tarefas separadas e independentes das implementações
 
+**Instruções para Workflow e Dependências:**
+- Identifique e especifique as dependências entre tarefas (ex: "Task 3 depende de Task 1, 2")
+- Defina a ordem sequencial do workflow onde tarefas devem seguir uma após a outra
+- Identifique tarefas que podem ser executadas em paralelo (parallel) simultaneamente
+- Use notação clara para workflow:
+  - **Sequencial** (→): Tarefas que devem ser executadas uma após a outra
+  - **Paralelo** (||): Tarefas que podem ser executadas simultaneamente (parallel)
+
+**Exemplos de Notação de Workflow:**
+- Sequencial: Task 1 → Task 2 → Task 3 (Task 2 só pode começar após Task 1, Task 3 após Task 2)
+- Paralelo: Task 2 || Task 3 (ambas dependem de Task 1, mas podem executar simultaneamente)
+- Combinado: Task 1 → (Task 2 || Task 3) → Task 4 (Task 4 depende de Task 2 e Task 3)
+
+Para cada tarefa, especifique:
+- Dependências: Lista de tarefas que devem ser concluídas antes
+- Pode executar em paralelo com: Lista de tarefas que podem executar simultaneamente
+
 Cada tarefa deve incluir:
 - Título claro e conciso
 - Descrição detalhada

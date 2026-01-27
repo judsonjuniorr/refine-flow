@@ -177,3 +177,127 @@ class TestJiraPromptWeekEstimations:
             "/" in system_message  # separator between T-shirt and weeks
             and ("week" in system_message.lower() or "semana" in system_message.lower())
         ), "Prompt should include examples with T-shirt / week format"
+
+
+class TestJiraPromptWorkflowSequencing:
+    """Tests for Phase 3: Workflow sequencing, dependencies, and parallel tasks."""
+
+    def test_prompt_requests_dependencies(self) -> None:
+        """Verify prompt asks for task dependencies."""
+        messages = JIRA_TEMPLATE.messages
+        system_message = messages[0].prompt.template
+
+        # Verify prompt mentions dependencies between tasks
+        assert any(
+            word in system_message.lower()
+            for word in ["depend", "depende", "dependency", "dependência"]
+        ), "Prompt should mention task dependencies"
+
+        # Verify it asks to identify which tasks depend on which
+        assert any(
+            phrase in system_message.lower()
+            for phrase in [
+                "identif",  # identifies, identifique
+                "especif",  # specify, especifique
+                "indic",  # indicate, indique
+                "list",  # list, liste
+            ]
+        ), "Prompt should ask to identify/specify task dependencies"
+
+    def test_prompt_requests_workflow_order(self) -> None:
+        """Verify prompt asks for sequential workflow."""
+        messages = JIRA_TEMPLATE.messages
+        system_message = messages[0].prompt.template
+
+        # Verify prompt mentions sequential execution or workflow order
+        assert any(
+            word in system_message.lower()
+            for word in [
+                "sequen",  # sequential, sequencial, sequence
+                "ordem",  # order in Portuguese
+                "order",
+                "workflow",
+                "fluxo",
+            ]
+        ), "Prompt should mention sequential workflow or task order"
+
+        # Verify it mentions tasks that follow each other
+        assert any(
+            phrase in system_message.lower()
+            for phrase in [
+                "segue",  # follows
+                "follow",
+                "após",  # after
+                "after",
+                "antes",  # before
+                "before",
+            ]
+        ), "Prompt should mention tasks following each other"
+
+    def test_prompt_requests_parallel_tasks(self) -> None:
+        """Verify prompt asks for parallel task identification."""
+        messages = JIRA_TEMPLATE.messages
+        system_message = messages[0].prompt.template
+
+        # Verify prompt mentions parallel execution
+        assert any(
+            word in system_message.lower()
+            for word in [
+                "parallel",  # parallel in English/Portuguese
+                "simultân",  # simultaneous, simultâneo
+                "concurrent",
+                "concorrent",
+            ]
+        ), "Prompt should mention parallel task execution"
+
+        # Verify it asks to identify tasks that can run in parallel
+        assert any(
+            phrase in system_message.lower()
+            for phrase in [
+                "can run",
+                "podem executar",
+                "podem ser",
+                "simultaneamente",
+                "ao mesmo tempo",
+                "same time",
+            ]
+        ), "Prompt should ask to identify parallel tasks"
+
+    def test_workflow_example_in_prompt(self) -> None:
+        """Verify prompt includes workflow structure example."""
+        messages = JIRA_TEMPLATE.messages
+        system_message = messages[0].prompt.template
+
+        # Verify prompt includes notation for sequential tasks (→ arrow)
+        assert "→" in system_message, "Prompt should include → notation for sequential tasks"
+
+        # Verify prompt includes notation for parallel tasks (||)
+        assert "||" in system_message, "Prompt should include || notation for parallel tasks"
+
+        # Verify prompt shows example with Task numbers
+        assert any(
+            phrase in system_message
+            for phrase in [
+                "Task 1",
+                "Task 2",
+                "Task 3",
+                "Tarefa 1",
+                "Tarefa 2",
+                "Tarefa 3",
+            ]
+        ), "Prompt should include example with task numbers"
+
+        # Verify example shows both sequential and parallel patterns
+        # Looking for patterns like "Task 1 → Task 2" or "Task 2 || Task 3"
+        has_sequential_example = any(
+            f"→ {word}" in system_message or f"{word} →" in system_message
+            for word in ["Task", "Tarefa", "task", "tarefa"]
+        )
+        has_parallel_example = any(
+            f"|| {word}" in system_message or f"{word} ||" in system_message
+            for word in ["Task", "Tarefa", "task", "tarefa"]
+        )
+
+        assert has_sequential_example or has_parallel_example, (
+            "Prompt should include workflow examples with → or || notation"
+        )
