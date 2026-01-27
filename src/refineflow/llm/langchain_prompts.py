@@ -44,9 +44,7 @@ class StateUpdate(BaseModel):
     cost_estimates: list[dict] = Field(
         default_factory=list, description="Estimativas com chaves 'item', 'amount', 'notes'"
     )
-    information_gaps: list[str] = Field(
-        default_factory=list, description="Lacunas de informação"
-    )
+    information_gaps: list[str] = Field(default_factory=list, description="Lacunas de informação")
 
 
 class EntryTypeClassification(BaseModel):
@@ -182,13 +180,29 @@ Sua tarefa é gerar uma tarefa pai e subtarefas (backend e frontend) baseadas na
 
 Estrutura esperada:
 1. **Tarefa Pai**: Visão geral completa com contexto e critérios de aceitação
-2. **Subtarefa Backend**: Trabalho específico de backend, APIs, banco de dados, etc.
-3. **Subtarefa Frontend**: Trabalho específico de frontend, UI/UX, componentes, etc.
+2. **Subtarefas Backend (2-7 tarefas)**: Divida o trabalho de backend em 2 a 7 tarefas menores
+   e entregáveis baseado na complexidade. Cada tarefa de implementação DEVE incluir seus testes
+   unitários seguindo TDD (escrever o teste primeiro, depois o código).
+3. **Subtarefas Frontend (2-7 tarefas)**: Divida o trabalho de frontend em 2 a 7 tarefas menores
+   e entregáveis baseado na complexidade. Cada tarefa de implementação DEVE incluir seus testes
+   unitários seguindo TDD (escrever o teste primeiro, depois o código).
+4. **Tarefas de Teste E2E (separadas)**: Crie tarefas independentes para testes end-to-end (E2E)
+   cobrindo os principais fluxos de usuário.
+
+**Instruções para Divisão de Tarefas:**
+- Divida backend e frontend em 2-7 subtarefas cada, baseado na complexidade e tamanho
+- Tarefas menores/simples: 2-3 subtarefas
+- Tarefas médias: 4-5 subtarefas
+- Tarefas grandes/complexas: 6-7 subtarefas
+- Cada subtarefa de implementação deve ser pequena, focada e entregável
+- **IMPORTANTE**: Cada subtarefa de implementação DEVE incluir testes unitários como parte da tarefa
+- Os testes unitários devem seguir TDD: escrever o teste primeiro, depois implementar o código
+- Testes E2E devem ser tarefas separadas e independentes das implementações
 
 Cada tarefa deve incluir:
 - Título claro e conciso
 - Descrição detalhada
-- Critérios de aceitação específicos e testáveis
+- Critérios de aceitação específicos e testáveis (incluindo critérios para testes unitários)
 - Estimativa T-Shirt (PP, P, M, G, GG, XGG)
 - Considerações sobre testes, observabilidade e riscos
 
@@ -366,7 +380,5 @@ Sua tarefa é analisar o conteúdo fornecido e determinar qual tipo de entrada e
 def get_classification_chain(llm):
     """Create entry type classification chain."""
     parser = JsonOutputParser(pydantic_object=EntryTypeClassification)
-    prompt = CLASSIFICATION_TEMPLATE.partial(
-        format_instructions=parser.get_format_instructions()
-    )
+    prompt = CLASSIFICATION_TEMPLATE.partial(format_instructions=parser.get_format_instructions())
     return prompt | llm | parser
