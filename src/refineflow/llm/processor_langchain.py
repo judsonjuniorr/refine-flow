@@ -1,6 +1,7 @@
 """LLM processing logic with LangChain."""
 
 import json
+import re
 
 from refineflow.core.models import Activity, Entry, EntryType
 from refineflow.core.state import ActivityState
@@ -354,3 +355,167 @@ class LLMProcessor:
         except Exception as e:
             logger.error(f"Failed to classify entry type: {e}", exc_info=True)
             raise ValueError(f"Classification failed: {e}")
+
+
+def validate_jira_structure(jira_content: str) -> tuple[bool, list[str]]:
+    """
+    Validate Jira export structure meets quality requirements.
+
+    Checks for:
+    - 2-7 backend implementation tasks
+    - 2-7 frontend implementation tasks
+    - Unit tests mentioned within implementation tasks
+    - Separate E2E test tasks section
+    - Week estimates in exact number format
+    - Minimum 0.5 weeks per task
+    - Dependency/workflow information present
+
+    Args:
+        jira_content: Generated Jira export markdown content
+
+    Returns:
+        Tuple of (is_valid, warnings) where:
+        - is_valid: True if all critical checks pass, False otherwise
+        - warnings: List of warning messages (can be empty)
+    """
+    warnings = []
+
+    # Defensive: handle None or empty content
+    if jira_content is None:
+        return False, ["Jira content is None"]
+
+    if not jira_content or len(jira_content.strip()) == 0:
+        return False, ["Jira content is empty"]
+
+    try:
+        # Convert to lowercase for case-insensitive matching
+        content_lower = jira_content.lower()
+
+        # 1. Check for 2-7 backend tasks
+        # Pattern matches: "# Subtarefa Backend", "## Backend Task", etc.
+        backend_pattern = r'#{1,3}\s*(?:subtarefa\s+)?backend(?:\s+\d+)?'
+        backend_tasks = re.findall(backend_pattern, content_lower, re.IGNORECASE)
+        backend_count = len(backend_tasks)
+
+        if backend_count < 2 or backend_count > 7:
+            warnings.append(
+                f"Backend tasks count ({backend_count}) outside recommended range of 2-7. "
+                "Consider breaking down into multiple granular tasks."
+            )
+
+        # 2. Check for 2-7 frontend tasks
+        frontend_pattern = r'#{1,3}\s*(?:subtarefa\s+)?frontend(?:\s+\d+)?'
+        frontend_tasks = re.findall(frontend_pattern, content_lower, re.IGNORECASE)
+        frontend_count = len(frontend_tasks)
+
+        if frontend_count < 2 or frontend_count > 7:
+            warnings.append(
+                f"Frontend tasks count ({frontend_count}) outside recommended range of 2-7. "
+                "Consider breaking down into multiple granular tasks."
+            )
+
+        # 3. Check for unit test mentions within implementation tasks
+        # Look for common unit test keywords in Portuguese and English
+        unit_test_keywords = [
+            'unit test', 'teste unitário', 'testes unitários',
+            'unittest', 'jest', 'pytest', 'tdd', 'test-driven'
+        ]
+        has_unit_test_mentions = any(keyword in content_lower for keyword in unit_test_keywords)
+
+        if not has_unit_test_mentions and (backend_count > 0 or frontend_count > 0):
+            warnings.append(
+                "Unit tests not explicitly mentioned in implementation tasks. "
+                "Each task should include its unit tests following TDD principles."
+            )
+
+        # 4. Check for separate E2E test section
+        e2e_keywords = ['e2e', 'end-to-end', 'teste e2e', 'testes e2e', 'test e2e']
+        has_e2e_section = any(keyword in content_lower for keyword in e2e_keywords)
+
+        if not has_e2e_section:
+            warnings.append(
+                "No dedicated E2E test section found. "
+                "Consider adding separate E2E test tasks covering main user flows."
+            )
+
+        # 5. Check for week estimates format (exact numbers)
+        # Pattern matches: "2 weeks", "1.5 weeks", "3.5 semanas", etc.
+        week_pattern = r'(\d+(?:\.\d+)?)\s*(?:week|semana|wk)'
+        week_estimates = re.findall(week_pattern, content_lower)
+
+        # Check for vague estimates (ranges, "around", etc.)
+        vague_patterns = [
+            r'\d+-\d+\s*(?:week|semana)',  # "2-3 weeks"
+            r'around\s+\d+',  # "around 2"
+            r'approximately\s+\d+',  # "approximately 2"
+            r'cerca de\s+\d+',  # "cerca de 2" (Portuguese)
+        ]
+        has_vague_estimates = any(
+            re.search(pattern, content_lower) for pattern in vague_patterns
+        )
+
+        if has_vague_estimates:
+            warnings.append(
+                "Week estimates should be exact numbers (e.g., '2.5 weeks'), "
+                "not ranges or approximations."
+            )
+
+        # 6. Check minimum 0.5 weeks
+        if week_estimates:
+            numeric_estimates = [float(est) for est in week_estimates]
+            min_estimate = min(numeric_estimates)
+
+            if min_estimate < 0.5:
+                warnings.append(
+                    f"Found task with estimate below minimum 0.5 weeks ({min_estimate} weeks). "
+                    "All tasks should be at least 0.5 weeks."
+                )
+
+        # 7. Check for dependency/workflow information
+        dependency_keywords = [
+            'dependência', 'dependências', 'dependency', 'dependencies',
+            'depends on', 'depende de', 'workflow', 'fluxo',
+            '→', '-->', 'after', 'após', 'before', 'antes'
+        ]
+        has_dependencies = any(keyword in content_lower for keyword in dependency_keywords)
+
+        if not has_dependencies and (backend_count > 1 or frontend_count > 1):
+            warnings.append(
+                "No dependency or workflow information found. "
+                "Consider specifying task dependencies and execution order."
+            )
+
+        # Determine overall validity
+        # Critical issues that make content invalid:
+        is_valid = True
+
+        # If backend or frontend count is 0 for BOTH, it's invalid
+        if backend_count == 0 and frontend_count == 0:
+            is_valid = False
+            warnings.append("No backend or frontend tasks found. Content appears incomplete.")
+
+        # Having only 1 task (old style) is now considered invalid per new requirements
+        if backend_count == 1:
+            is_valid = False
+
+        if frontend_count == 1:
+            is_valid = False
+
+        # If either area has too many tasks (> 7), it's invalid
+        if backend_count > 7:
+            is_valid = False
+
+        if frontend_count > 7:
+            is_valid = False
+
+        # If there are tasks but no week estimates at all, it's invalid
+        if (backend_count > 0 or frontend_count > 0) and len(week_estimates) == 0:
+            is_valid = False
+            warnings.append("No week estimates found. All tasks must have time estimates.")
+
+        return is_valid, warnings
+
+    except Exception as e:
+        # Never raise exceptions - always return a result
+        logger.error(f"Error during Jira validation: {e}", exc_info=True)
+        return False, [f"Validation error: {str(e)}"]

@@ -4,6 +4,16 @@ from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 
+# T-Shirt size to weeks conversion mapping
+TSHIRT_TO_WEEKS = {
+    "PP": 1,  # Até 2 semanas → 1 semana como referência
+    "P": 2,  # Até 1 mês → 2 semanas
+    "M": 4,  # Até 2 meses → 4 semanas
+    "G": 8,  # Até 3 meses → 8 semanas
+    "GG": 12,  # Até 5 meses → 12 semanas
+    "XGG": 20,  # Meses de trabalho → 20 semanas
+}
+
 
 # Pydantic models para output parsing
 class StateUpdate(BaseModel):
@@ -44,9 +54,7 @@ class StateUpdate(BaseModel):
     cost_estimates: list[dict] = Field(
         default_factory=list, description="Estimativas com chaves 'item', 'amount', 'notes'"
     )
-    information_gaps: list[str] = Field(
-        default_factory=list, description="Lacunas de informação"
-    )
+    information_gaps: list[str] = Field(default_factory=list, description="Lacunas de informação")
 
 
 class EntryTypeClassification(BaseModel):
@@ -182,19 +190,68 @@ Sua tarefa é gerar uma tarefa pai e subtarefas (backend e frontend) baseadas na
 
 Estrutura esperada:
 1. **Tarefa Pai**: Visão geral completa com contexto e critérios de aceitação
-2. **Subtarefa Backend**: Trabalho específico de backend, APIs, banco de dados, etc.
-3. **Subtarefa Frontend**: Trabalho específico de frontend, UI/UX, componentes, etc.
+2. **Subtarefas Backend (2-7 tarefas)**: Divida o trabalho de backend em 2 a 7 tarefas menores
+   e entregáveis baseado na complexidade. Cada tarefa de implementação DEVE incluir seus testes
+   unitários seguindo TDD (escrever o teste primeiro, depois o código).
+3. **Subtarefas Frontend (2-7 tarefas)**: Divida o trabalho de frontend em 2 a 7 tarefas menores
+   e entregáveis baseado na complexidade. Cada tarefa de implementação DEVE incluir seus testes
+   unitários seguindo TDD (escrever o teste primeiro, depois o código).
+4. **Tarefas de Teste E2E (separadas)**: Crie tarefas independentes para testes end-to-end (E2E)
+   cobrindo os principais fluxos de usuário.
+
+**Instruções para Divisão de Tarefas:**
+- Divida backend e frontend em 2-7 subtarefas cada, baseado na complexidade e tamanho
+- Tarefas menores/simples: 2-3 subtarefas
+- Tarefas médias: 4-5 subtarefas
+- Tarefas grandes/complexas: 6-7 subtarefas
+- Cada subtarefa de implementação deve ser pequena, focada e entregável
+- **IMPORTANTE**: Cada subtarefa de implementação DEVE incluir testes unitários como parte da tarefa
+- Os testes unitários devem seguir TDD: escrever o teste primeiro, depois implementar o código
+- Testes E2E devem ser tarefas separadas e independentes das implementações
+
+**Instruções para Workflow e Dependências:**
+- Identifique e especifique as dependências entre tarefas (ex: "Task 3 depende de Task 1, 2")
+- Defina a ordem sequencial do workflow onde tarefas devem seguir uma após a outra
+- Identifique tarefas que podem ser executadas em paralelo (parallel) simultaneamente
+- Use notação clara para workflow:
+  - **Sequencial** (→): Tarefas que devem ser executadas uma após a outra
+  - **Paralelo** (||): Tarefas que podem ser executadas simultaneamente (parallel)
+
+**Exemplos de Notação de Workflow:**
+- Sequencial: Task 1 → Task 2 → Task 3 (Task 2 só pode começar após Task 1, Task 3 após Task 2)
+- Paralelo: Task 2 || Task 3 (ambas dependem de Task 1, mas podem executar simultaneamente)
+- Combinado: Task 1 → (Task 2 || Task 3) → Task 4 (Task 4 depende de Task 2 e Task 3)
+
+Para cada tarefa, especifique:
+- Dependências: Lista de tarefas que devem ser concluídas antes
+- Pode executar em paralelo com: Lista de tarefas que podem executar simultaneamente
 
 Cada tarefa deve incluir:
 - Título claro e conciso
 - Descrição detalhada
-- Critérios de aceitação específicos e testáveis
+- Critérios de aceitação específicos e testáveis (incluindo critérios para testes unitários)
 - Estimativa T-Shirt (PP, P, M, G, GG, XGG)
+- Estimativa em semanas (número exato, mínimo 0.5 semanas)
 - Considerações sobre testes, observabilidade e riscos
 
 **Modelo de Estimativas T-Shirt:**
 - PP: até 2 semanas | P: até 1 mês | M: até 2 meses
-- G: até 3 meses | GG: até 5 meses | XGG: meses de trabalho""",
+- G: até 3 meses | GG: até 5 meses | XGG: meses de trabalho
+
+**Diretrizes para Estimativas em Semanas:**
+- Forneça números exatos (ex: 1.5, 2.5, 3.5 semanas), não intervalos
+- Estimativa mínima é de 0.5 semanas por tarefa
+- Use as estimativas T-Shirt como referência: PP≈1, P≈2, M≈4, G≈8, GG≈12, XGG≈20 semanas
+- Ajuste o número exato baseado na complexidade específica da tarefa
+- Formato recomendado: "Estimativa: M / 3.5 semanas" (T-shirt / semanas)
+
+**Exemplos de Estimativas:**
+- Tarefa pequena: "PP / 0.5 semanas"
+- Tarefa média-simples: "P / 1.5 semanas"
+- Tarefa média-complexa: "M / 3.5 semanas"
+- Tarefa grande: "G / 7 semanas"
+- Tarefa muito grande: "GG / 10 semanas"
+- Tarefa extremamente complexa: "XGG / 18 semanas""",
         ),
         (
             "human",
@@ -366,7 +423,5 @@ Sua tarefa é analisar o conteúdo fornecido e determinar qual tipo de entrada e
 def get_classification_chain(llm):
     """Create entry type classification chain."""
     parser = JsonOutputParser(pydantic_object=EntryTypeClassification)
-    prompt = CLASSIFICATION_TEMPLATE.partial(
-        format_instructions=parser.get_format_instructions()
-    )
+    prompt = CLASSIFICATION_TEMPLATE.partial(format_instructions=parser.get_format_instructions())
     return prompt | llm | parser
