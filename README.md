@@ -39,7 +39,7 @@ Agente de refinamento de atividades com IA e CLI interativa para gerenciamento d
 
 ```bash
 git clone <repository-url>
-cd refinement-agent
+cd refine-flow
 ./setup.sh
 ```
 
@@ -54,7 +54,7 @@ O script irá:
 1. Clone o repositório:
 ```bash
 git clone <repository-url>
-cd refinement-agent
+cd refine-flow
 ```
 
 2. Crie um ambiente virtual:
